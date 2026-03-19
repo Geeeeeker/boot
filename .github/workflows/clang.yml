@@ -1,0 +1,52 @@
+name: Download Clang Prebuilts and Upload to Release
+
+on:
+  workflow_dispatch:  # 支持手动触发
+
+permissions:
+  contents: write  # 允许创建 Release 和上传资产
+
+jobs:
+  upload:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Create downloads directory
+        run: mkdir -p downloads
+
+      - name: Download Clang archives
+        run: |
+          curl -L -o downloads/clang-r383902b.tar.gz "https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86/+archive/refs/heads/android11-release/clang-r383902b.tar.gz"
+          curl -L -o downloads/clang-r416183b.tar.gz "https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86/+archive/refs/heads/android12-release/clang-r416183b.tar.gz"
+          curl -L -o downloads/clang-r450784d.tar.gz "https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86/+archive/refs/heads/android13-release/clang-r450784d.tar.gz"
+          curl -L -o downloads/clang-r487747c.tar.gz "https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86/+archive/refs/heads/android14-release/clang-r487747c.tar.gz"
+          curl -L -o downloads/clang-r498229b.tar.gz "https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86/+archive/refs/heads/android15-release/clang-r498229b.tar.gz"
+          curl -L -o downloads/clang-r547379.tar.gz "https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86/+archive/refs/heads/android16-release/clang-r547379.tar.gz"
+
+      - name: Generate timestamp for tag
+        id: timestamp
+        run: echo "time=$(date +'%Y%m%d-%H%M%S')" >> $GITHUB_OUTPUT
+
+      - name: Create Release and Upload Assets
+        uses: softprops/action-gh-release@v2
+        with:
+          files: downloads/*
+          tag_name: clang-prebuilts-${{ steps.timestamp.outputs.time }}
+          name: "Clang Prebuilts (Android 11–16) - ${{ steps.timestamp.outputs.time }}"
+          body: |
+            This release contains the following Clang prebuilt archives from Android Open Source Project:
+
+            - **Android 11** (android11-release): `clang-r383902b.tar.gz`
+            - **Android 12** (android12-release): `clang-r416183b.tar.gz`
+            - **Android 13** (android13-release): `clang-r450784d.tar.gz`
+            - **Android 14** (android14-release): `clang-r487747c.tar.gz`
+            - **Android 15** (android15-release): `clang-r498229b.tar.gz`
+            - **Android 16** (android16-release): `clang-r547379.tar.gz`
+
+            Files were downloaded directly from `android.googlesource.com`.
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
