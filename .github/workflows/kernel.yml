@@ -1,0 +1,41 @@
+name: Download Linux Kernel and Upload to Release
+
+on:
+  workflow_dispatch:  # 支持手动触发
+
+permissions:
+  contents: write  # 允许创建 Release 和上传资产
+
+jobs:
+  upload:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Create downloads directory
+        run: mkdir -p downloads
+
+      - name: Download Linux Kernel archive
+        run: |
+          curl -L -o downloads/linux-6.12.18.tar.xz "https://cdn.kernel.org/pub/linux/kernel/v6.x/linux-6.12.18.tar.xz"
+
+      - name: Generate timestamp for tag
+        id: timestamp
+        run: echo "time=$(date +'%Y%m%d-%H%M%S')" >> $GITHUB_OUTPUT
+
+      - name: Create Release and Upload Assets
+        uses: softprops/action-gh-release@v2
+        with:
+          files: downloads/*
+          tag_name: linux-6.12.18-${{ steps.timestamp.outputs.time }}
+          name: "Linux Kernel 6.12.18 - ${{ steps.timestamp.outputs.time }}"
+          body: |
+            This release contains the Linux kernel 6.12.18 source tarball downloaded from kernel.org.
+
+            - File: `linux-6.12.18.tar.xz`
+            - Source: [https://cdn.kernel.org/pub/linux/kernel/v6.x/linux-6.12.18.tar.xz](https://cdn.kernel.org/pub/linux/kernel/v6.x/linux-6.12.18.tar.xz)
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
