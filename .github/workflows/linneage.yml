@@ -1,0 +1,57 @@
+name: Download LineageOS ROM and Upload as 7z Split Volumes
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  upload:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Create downloads directory
+        run: mkdir -p downloads
+
+      - name: Download LineageOS Ext ROM
+        run: |
+          curl -L -o downloads/lineage-23.0-Ext-Community-raphael-Gapps-20251215-0129.zip \
+            "https://master.dl.sourceforge.net/project/raphael-sixteen/Los-Ext/lineage-23.0-Ext-Community-raphael-Gapps-20251215-0129.zip"
+
+      - name: Install 7-Zip
+        run: sudo apt-get update && sudo apt-get install -y p7zip-full
+
+      - name: Split ROM into 1023MB 7z volumes
+        run: |
+          cd downloads
+          7z a -v1023m lineage-23.0-Ext-Community-raphael-Gapps-20251215-0129.7z \
+            lineage-23.0-Ext-Community-raphael-Gapps-20251215-0129.zip
+          rm lineage-23.0-Ext-Community-raphael-Gapps-20251215-0129.zip
+
+      - name: Generate timestamp
+        id: timestamp
+        run: echo "time=$(date +'%Y%m%d-%H%M%S')" >> $GITHUB_OUTPUT
+
+      - name: Create Release and Upload Assets
+        uses: softprops/action-gh-release@v2
+        with:
+          files: downloads/*
+          tag_name: lineage-ext-raphael-${{ steps.timestamp.outputs.time }}
+          name: "LineageOS Ext ROM for Raphael (7z split) - ${{ steps.timestamp.outputs.time }}"
+          body: |
+            This release contains the LineageOS Ext ROM for Raphael (Xiaomi Mi 9T Pro / Redmi K20 Pro), split into 7z volumes due to GitHub size limits.
+
+            **Original ROM**: `lineage-23.0-Ext-Community-raphael-Gapps-20251215-0129.zip`  
+            **Build date**: 2025-12-15
+
+            **How to extract (Windows/macOS/Linux)**:
+            1. Download all parts (`.7z.001`, `.7z.002`, ...) to the same folder.
+            2. Right-click the `.7z.001` file and select **"Extract here"** (requires [7-Zip](https://www.7-zip.org/) installed).
+            3. The original ZIP file will be extracted.
+
+            **For command-line users**:
+            ```bash
+            7z x lineage-23.0-Ext-Community-raphael-Gapps-20251215-0129.7z.001
