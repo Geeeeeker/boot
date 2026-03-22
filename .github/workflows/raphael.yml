@@ -1,0 +1,85 @@
+name: Download & Extract LineageOS 21.0 (Android 14) ROM for Raphael
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  process-rom:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install 7-Zip
+        run: sudo apt-get update && sudo apt-get install -y p7zip-full
+
+      - name: Create working directory
+        run: mkdir -p work downloads
+
+      - name: Download LineageOS 21.0 ROM (Android 14)
+        run: |
+          curl -L -o downloads/lineage-21.0-20241115-UNOFFICIAL-raphael-gapps.zip \
+            "https://phoenixnap.dl.sourceforge.net/project/flyfishxu-raphael-roms/LineageOS/lineage-21.0-20241115-UNOFFICIAL-raphael-gapps.zip?viasf=1"
+
+      - name: Extract boot & recovery images from ROM zip
+        run: |
+          cd downloads
+          # 解压 ROM zip 到临时目录
+          unzip lineage-21.0-20241115-UNOFFICIAL-raphael-gapps.zip -d extracted_rom
+          # 复制 boot.img 和 recovery.img（如果存在）
+          if [ -f extracted_rom/boot.img ]; then
+            cp extracted_rom/boot.img ../boot.img
+            echo "boot.img extracted"
+          else
+            echo "boot.img not found in ROM zip"
+            exit 1
+          fi
+          if [ -f extracted_rom/recovery.img ]; then
+            cp extracted_rom/recovery.img ../recovery.img
+            echo "recovery.img extracted"
+          else
+            echo "recovery.img not found in ROM zip (may be included in payload.bin)"
+          fi
+          # 清理临时目录，节省空间
+          rm -rf extracted_rom
+
+      - name: Split ROM zip into 7z volumes (1023MB)
+        run: |
+          cd downloads
+          7z a -v1023m lineage-21.0-20241115-UNOFFICIAL-raphael-gapps.7z \
+            lineage-21.0-20241115-UNOFFICIAL-raphael-gapps.zip
+          rm lineage-21.0-20241115-UNOFFICIAL-raphael-gapps.zip
+
+      - name: Generate timestamp
+        id: timestamp
+        run: echo "time=$(date +'%Y%m%d-%H%M%S')" >> $GITHUB_OUTPUT
+
+      - name: Create Release and Upload Assets
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            downloads/*
+            boot.img
+            recovery.img
+          tag_name: lineage-21-raphael-${{ steps.timestamp.outputs.time }}
+          name: "LineageOS 21.0 (Android 14) for Raphael - ${{ steps.timestamp.outputs.time }}"
+          body: |
+            This release contains the LineageOS 21.0 (Android 14) ROM for Raphael (Xiaomi Mi 9T Pro / Redmi K20 Pro).
+
+            **Original ROM**: `lineage-21.0-20241115-UNOFFICIAL-raphael-gapps.zip`  
+            **Build date**: 2024-11-15  
+            **Android version**: 14
+
+            **Included files:**
+            - `lineage-21.0-20241115-UNOFFICIAL-raphael-gapps.7z.001`, `.7z.002`, ... (split ROM)
+            - `boot.img` (extracted kernel)
+            - `recovery.img` (if present in ROM)
+
+            **How to extract the ROM zip from split volumes:**
+            1. Download all `.7z.*` parts to the same folder.
+            2. Extract with 7-Zip:
+               ```bash
+               7z x lineage-21.0-20241115-UNOFFICIAL-raphael-gapps.7z.001
