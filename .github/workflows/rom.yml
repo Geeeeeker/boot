@@ -1,4 +1,4 @@
-name: Download, Split, and Upload ROM
+name: Download ROM and Upload as 7z Split Volumes
 
 on:
   workflow_dispatch:
@@ -20,27 +20,37 @@ jobs:
         run: |
           curl -L -o downloads/PixelOS_raphael-16.2-20260320-1932.zip "https://master.dl.sourceforge.net/project/raphael-sixteen/PixelOS/PixelOS_raphael-16.2-20260320-1932.zip"
 
-      - name: Split ROM into <2GB parts
+      - name: Install 7-Zip
+        run: sudo apt-get update && sudo apt-get install -y p7zip-full
+
+      - name: Split ROM into 1023MB 7z volumes
         run: |
           cd downloads
-          # 分割为 1900MB 的分卷（确保小于 2GB），生成 PixelOS_raphael-16.2-20260320-1932.zip.part*
-          split -b 1900M PixelOS_raphael-16.2-20260320-1932.zip PixelOS_raphael-16.2-20260320-1932.zip.part
-          # 可选：删除原始文件以节省空间
+          # 7z分卷压缩，每卷1023M，自动生成 .7z.001, .7z.002, ...
+          7z a -v1023m PixelOS_raphael-16.2-20260320-1932.7z PixelOS_raphael-16.2-20260320-1932.zip
+          # 删除原始zip，节省空间（可选）
           rm PixelOS_raphael-16.2-20260320-1932.zip
 
       - name: Generate timestamp
         id: timestamp
         run: echo "time=$(date +'%Y%m%d-%H%M%S')" >> $GITHUB_OUTPUT
 
-      - name: Create Release and Upload Parts
+      - name: Create Release and Upload Assets
         uses: softprops/action-gh-release@v2
         with:
           files: downloads/*
           tag_name: pixelos-raphael-${{ steps.timestamp.outputs.time }}
-          name: "PixelOS ROM for Raphael (split) - ${{ steps.timestamp.outputs.time }}"
+          name: "PixelOS ROM for Raphael (7z split) - ${{ steps.timestamp.outputs.time }}"
           body: |
-            This release contains the PixelOS ROM for Raphael, split into parts due to GitHub size limits.
-            **Original ROM**: PixelOS_raphael-16.2-20260320-1932.zip  
-            **How to merge**:  
+            This release contains the PixelOS ROM for Raphael, split into 7z volumes due to GitHub size limits.
+
+            **Original ROM**: PixelOS_raphael-16.2-20260320-1932.zip
+
+            **How to extract (Windows/macOS/Linux)**:
+            1. Download all parts (`.7z.001`, `.7z.002`, ...) to the same folder.
+            2. Right-click the `.7z.001` file and select **"Extract here"** (requires [7-Zip](https://www.7-zip.org/) installed).
+            3. The original `PixelOS_raphael-16.2-20260320-1932.zip` will be extracted.
+
+            **For command-line users**:
             ```bash
-            cat PixelOS_raphael-16.2-20260320-1932.zip.part* > PixelOS_raphael-16.2-20260320-1932.zip
+            7z x PixelOS_raphael-16.2-20260320-1932.7z.001
