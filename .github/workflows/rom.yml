@@ -1,0 +1,44 @@
+name: Download PixelOS ROM and Upload to Release
+
+on:
+  workflow_dispatch:  # 支持手动触发
+
+permissions:
+  contents: write  # 允许创建 Release 和上传资产
+
+jobs:
+  upload:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Create downloads directory
+        run: mkdir -p downloads
+
+      - name: Download PixelOS ROM
+        run: |
+          curl -L -o downloads/PixelOS_raphael-16.2-20260320-1932.zip "https://master.dl.sourceforge.net/project/raphael-sixteen/PixelOS/PixelOS_raphael-16.2-20260320-1932.zip"
+
+      - name: Generate timestamp for tag
+        id: timestamp
+        run: echo "time=$(date +'%Y%m%d-%H%M%S')" >> $GITHUB_OUTPUT
+
+      - name: Create Release and Upload Assets
+        uses: softprops/action-gh-release@v2
+        with:
+          files: downloads/*
+          tag_name: pixelos-raphael-${{ steps.timestamp.outputs.time }}
+          name: "PixelOS ROM for Raphael - ${{ steps.timestamp.outputs.time }}"
+          body: |
+            This release contains the PixelOS ROM for Raphael (Xiaomi Mi 9T Pro / Redmi K20 Pro).
+
+            - **ROM**: PixelOS_raphael-16.2-20260320-1932.zip
+            - **Android version**: 16.2
+            - **Build date**: 2026-03-20
+
+            File was downloaded from SourceForge: https://sourceforge.net/projects/raphael-sixteen/
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
