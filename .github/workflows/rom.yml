@@ -1,10 +1,10 @@
-name: Download PixelOS ROM and Upload to Release
+name: Download, Split, and Upload ROM
 
 on:
-  workflow_dispatch:  # 支持手动触发
+  workflow_dispatch:
 
 permissions:
-  contents: write  # 允许创建 Release 和上传资产
+  contents: write
 
 jobs:
   upload:
@@ -20,25 +20,27 @@ jobs:
         run: |
           curl -L -o downloads/PixelOS_raphael-16.2-20260320-1932.zip "https://master.dl.sourceforge.net/project/raphael-sixteen/PixelOS/PixelOS_raphael-16.2-20260320-1932.zip"
 
-      - name: Generate timestamp for tag
+      - name: Split ROM into <2GB parts
+        run: |
+          cd downloads
+          # 分割为 1900MB 的分卷（确保小于 2GB），生成 PixelOS_raphael-16.2-20260320-1932.zip.part*
+          split -b 1900M PixelOS_raphael-16.2-20260320-1932.zip PixelOS_raphael-16.2-20260320-1932.zip.part
+          # 可选：删除原始文件以节省空间
+          rm PixelOS_raphael-16.2-20260320-1932.zip
+
+      - name: Generate timestamp
         id: timestamp
         run: echo "time=$(date +'%Y%m%d-%H%M%S')" >> $GITHUB_OUTPUT
 
-      - name: Create Release and Upload Assets
+      - name: Create Release and Upload Parts
         uses: softprops/action-gh-release@v2
         with:
           files: downloads/*
           tag_name: pixelos-raphael-${{ steps.timestamp.outputs.time }}
-          name: "PixelOS ROM for Raphael - ${{ steps.timestamp.outputs.time }}"
+          name: "PixelOS ROM for Raphael (split) - ${{ steps.timestamp.outputs.time }}"
           body: |
-            This release contains the PixelOS ROM for Raphael (Xiaomi Mi 9T Pro / Redmi K20 Pro).
-
-            - **ROM**: PixelOS_raphael-16.2-20260320-1932.zip
-            - **Android version**: 16.2
-            - **Build date**: 2026-03-20
-
-            File was downloaded from SourceForge: https://sourceforge.net/projects/raphael-sixteen/
-          draft: false
-          prerelease: false
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+            This release contains the PixelOS ROM for Raphael, split into parts due to GitHub size limits.
+            **Original ROM**: PixelOS_raphael-16.2-20260320-1932.zip  
+            **How to merge**:  
+            ```bash
+            cat PixelOS_raphael-16.2-20260320-1932.zip.part* > PixelOS_raphael-16.2-20260320-1932.zip
