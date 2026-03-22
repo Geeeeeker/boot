@@ -1,0 +1,130 @@
+name: Download and Extract ROMs (boot & recovery)
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  extract:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install 7-Zip
+        run: sudo apt-get update && sudo apt-get install -y p7zip-full
+
+      - name: Create working directory
+        run: mkdir -p work
+
+      # ----- PixelOS ROM -----
+      - name: Download PixelOS 7z parts
+        run: |
+          cd work
+          wget https://github.com/Geeeeeker/boot/releases/download/pixelos-raphael-20260322-043200/PixelOS_raphael-16.2-20260320-1932.7z.001
+          wget https://github.com/Geeeeeker/boot/releases/download/pixelos-raphael-20260322-043200/PixelOS_raphael-16.2-20260320-1932.7z.002
+          wget https://github.com/Geeeeeker/boot/releases/download/pixelos-raphael-20260322-043200/PixelOS_raphael-16.2-20260320-1932.7z.003
+
+      - name: Extract PixelOS 7z (to get ROM zip)
+        run: |
+          cd work
+          7z x PixelOS_raphael-16.2-20260320-1932.7z.001 -opixelos_temp
+
+      - name: Extract PixelOS zip to get images
+        run: |
+          cd work
+          # 假设解压后得到的是 .zip 文件，名称可能和分卷前缀相同
+          # 查找解压出的 .zip 文件
+          zip_file=$(find pixelos_temp -name "*.zip" -type f | head -n 1)
+          if [ -f "$zip_file" ]; then
+            unzip "$zip_file" -d pixelos_extracted
+          else
+            echo "No zip file found in PixelOS extraction"
+            exit 1
+          fi
+
+      - name: Copy PixelOS boot and recovery
+        run: |
+          cd work/pixelos_extracted
+          # 如果文件存在则复制，否则跳过（但会失败）
+          if [ -f boot.img ]; then
+            cp boot.img ../../PixelOS_boot.img
+          else
+            echo "boot.img not found in PixelOS"
+            exit 1
+          fi
+          if [ -f recovery.img ]; then
+            cp recovery.img ../../PixelOS_recovery.img
+          else
+            echo "recovery.img not found in PixelOS"
+            # 可选：如果不存在就不复制，这里我们允许继续，但之后可能缺失
+          fi
+
+      # ----- LineageOS ROM -----
+      - name: Download LineageOS 7z parts
+        run: |
+          cd work
+          wget https://github.com/Geeeeeker/boot/releases/download/lineage-ext-raphael-20260322-055952/lineage-23.0-Ext-Community-raphael-Gapps-20251215-0129.7z.001
+          wget https://github.com/Geeeeeker/boot/releases/download/lineage-ext-raphael-20260322-055952/lineage-23.0-Ext-Community-raphael-Gapps-20251215-0129.7z.002
+          wget https://github.com/Geeeeeker/boot/releases/download/lineage-ext-raphael-20260322-055952/lineage-23.0-Ext-Community-raphael-Gapps-20251215-0129.7z.003
+
+      - name: Extract LineageOS 7z (to get ROM zip)
+        run: |
+          cd work
+          7z x lineage-23.0-Ext-Community-raphael-Gapps-20251215-0129.7z.001 -olineage_temp
+
+      - name: Extract LineageOS zip to get images
+        run: |
+          cd work
+          zip_file=$(find lineage_temp -name "*.zip" -type f | head -n 1)
+          if [ -f "$zip_file" ]; then
+            unzip "$zip_file" -d lineage_extracted
+          else
+            echo "No zip file found in LineageOS extraction"
+            exit 1
+          fi
+
+      - name: Copy LineageOS boot and recovery
+        run: |
+          cd work/lineage_extracted
+          if [ -f boot.img ]; then
+            cp boot.img ../../LineageOS_boot.img
+          else
+            echo "boot.img not found in LineageOS"
+            exit 1
+          fi
+          if [ -f recovery.img ]; then
+            cp recovery.img ../../LineageOS_recovery.img
+          else
+            echo "recovery.img not found in LineageOS"
+          fi
+
+      - name: List extracted files
+        run: ls -la *.img
+
+      - name: Generate timestamp
+        id: timestamp
+        run: echo "time=$(date +'%Y%m%d-%H%M%S')" >> $GITHUB_OUTPUT
+
+      - name: Create Release and Upload Assets
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            PixelOS_boot.img
+            PixelOS_recovery.img
+            LineageOS_boot.img
+            LineageOS_recovery.img
+          tag_name: extracted-roms-${{ steps.timestamp.outputs.time }}
+          name: "Extracted boot & recovery images - ${{ steps.timestamp.outputs.time }}"
+          body: |
+            This release contains extracted `boot.img` and `recovery.img` from:
+            - **PixelOS**: `PixelOS_raphael-16.2-20260320-1932`
+            - **LineageOS Ext**: `lineage-23.0-Ext-Community-raphael-Gapps-20251215-0129`
+
+            **Images:**
+            - `PixelOS_boot.img`
+            - `PixelOS_recovery.img`
+            - `LineageOS_boot.img`
+            - `LineageOS_recovery.img` (if available)
