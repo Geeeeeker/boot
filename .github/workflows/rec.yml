@@ -1,4 +1,4 @@
-name: Download and Extract ROMs (boot & recovery)
+name: Download & Extract LineageOS 22.1 ROM for Raphael
 
 on:
   workflow_dispatch:
@@ -7,7 +7,7 @@ permissions:
   contents: write
 
 jobs:
-  extract:
+  process-rom:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
@@ -17,92 +17,42 @@ jobs:
         run: sudo apt-get update && sudo apt-get install -y p7zip-full
 
       - name: Create working directory
-        run: mkdir -p work
+        run: mkdir -p work downloads
 
-      # ----- PixelOS ROM -----
-      - name: Download PixelOS 7z parts
+      - name: Download LineageOS 22.1 ROM (Android 15)
         run: |
-          cd work
-          wget https://github.com/Geeeeeker/boot/releases/download/pixelos-raphael-20260322-043200/PixelOS_raphael-16.2-20260320-1932.7z.001
-          wget https://github.com/Geeeeeker/boot/releases/download/pixelos-raphael-20260322-043200/PixelOS_raphael-16.2-20260320-1932.7z.002
-          wget https://github.com/Geeeeeker/boot/releases/download/pixelos-raphael-20260322-043200/PixelOS_raphael-16.2-20260320-1932.7z.003
+          curl -L -o downloads/lineage-22.1-20250209-UNOFFICIAL-raphael.zip \
+            "https://downloads.sourceforge.net/project/butterfingerz/Raphael/los/lineage-22.1-20250209-UNOFFICIAL-raphael.zip"
 
-      - name: Extract PixelOS 7z (to get ROM zip)
+      - name: Extract boot & recovery images from ROM zip
         run: |
-          cd work
-          7z x PixelOS_raphael-16.2-20260320-1932.7z.001 -opixelos_temp
-
-      - name: Extract PixelOS zip to get images
-        run: |
-          cd work
-          # 假设解压后得到的是 .zip 文件，名称可能和分卷前缀相同
-          # 查找解压出的 .zip 文件
-          zip_file=$(find pixelos_temp -name "*.zip" -type f | head -n 1)
-          if [ -f "$zip_file" ]; then
-            unzip "$zip_file" -d pixelos_extracted
+          cd downloads
+          # 解压 ROM zip 到临时目录
+          unzip lineage-22.1-20250209-UNOFFICIAL-raphael.zip -d extracted_rom
+          # 复制 boot.img（必须存在）
+          if [ -f extracted_rom/boot.img ]; then
+            cp extracted_rom/boot.img ../boot.img
+            echo "boot.img extracted"
           else
-            echo "No zip file found in PixelOS extraction"
+            echo "boot.img not found in ROM zip"
             exit 1
           fi
-
-      - name: Copy PixelOS boot and recovery
-        run: |
-          cd work/pixelos_extracted
-          # 如果文件存在则复制，否则跳过（但会失败）
-          if [ -f boot.img ]; then
-            cp boot.img ../../PixelOS_boot.img
+          # 复制 recovery.img（可选）
+          if [ -f extracted_rom/recovery.img ]; then
+            cp extracted_rom/recovery.img ../recovery.img
+            echo "recovery.img extracted"
           else
-            echo "boot.img not found in PixelOS"
-            exit 1
+            echo "recovery.img not found in ROM zip (may be included in payload.bin)"
           fi
-          if [ -f recovery.img ]; then
-            cp recovery.img ../../PixelOS_recovery.img
-          else
-            echo "recovery.img not found in PixelOS"
-            # 可选：如果不存在就不复制，这里我们允许继续，但之后可能缺失
-          fi
+          # 清理临时目录，节省空间
+          rm -rf extracted_rom
 
-      # ----- LineageOS ROM -----
-      - name: Download LineageOS 7z parts
+      - name: Split ROM zip into 7z volumes (1023MB)
         run: |
-          cd work
-          wget https://github.com/Geeeeeker/boot/releases/download/lineage-ext-raphael-20260322-055952/lineage-23.0-Ext-Community-raphael-Gapps-20251215-0129.7z.001
-          wget https://github.com/Geeeeeker/boot/releases/download/lineage-ext-raphael-20260322-055952/lineage-23.0-Ext-Community-raphael-Gapps-20251215-0129.7z.002
-          wget https://github.com/Geeeeeker/boot/releases/download/lineage-ext-raphael-20260322-055952/lineage-23.0-Ext-Community-raphael-Gapps-20251215-0129.7z.003
-
-      - name: Extract LineageOS 7z (to get ROM zip)
-        run: |
-          cd work
-          7z x lineage-23.0-Ext-Community-raphael-Gapps-20251215-0129.7z.001 -olineage_temp
-
-      - name: Extract LineageOS zip to get images
-        run: |
-          cd work
-          zip_file=$(find lineage_temp -name "*.zip" -type f | head -n 1)
-          if [ -f "$zip_file" ]; then
-            unzip "$zip_file" -d lineage_extracted
-          else
-            echo "No zip file found in LineageOS extraction"
-            exit 1
-          fi
-
-      - name: Copy LineageOS boot and recovery
-        run: |
-          cd work/lineage_extracted
-          if [ -f boot.img ]; then
-            cp boot.img ../../LineageOS_boot.img
-          else
-            echo "boot.img not found in LineageOS"
-            exit 1
-          fi
-          if [ -f recovery.img ]; then
-            cp recovery.img ../../LineageOS_recovery.img
-          else
-            echo "recovery.img not found in LineageOS"
-          fi
-
-      - name: List extracted files
-        run: ls -la *.img
+          cd downloads
+          7z a -v1023m lineage-22.1-20250209-UNOFFICIAL-raphael.7z \
+            lineage-22.1-20250209-UNOFFICIAL-raphael.zip
+          rm lineage-22.1-20250209-UNOFFICIAL-raphael.zip
 
       - name: Generate timestamp
         id: timestamp
@@ -112,19 +62,25 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           files: |
-            PixelOS_boot.img
-            PixelOS_recovery.img
-            LineageOS_boot.img
-            LineageOS_recovery.img
-          tag_name: extracted-roms-${{ steps.timestamp.outputs.time }}
-          name: "Extracted boot & recovery images - ${{ steps.timestamp.outputs.time }}"
+            downloads/*
+            boot.img
+            recovery.img
+          tag_name: lineage-22-raphael-${{ steps.timestamp.outputs.time }}
+          name: "LineageOS 22.1 (Android 15) for Raphael - ${{ steps.timestamp.outputs.time }}"
           body: |
-            This release contains extracted `boot.img` and `recovery.img` from:
-            - **PixelOS**: `PixelOS_raphael-16.2-20260320-1932`
-            - **LineageOS Ext**: `lineage-23.0-Ext-Community-raphael-Gapps-20251215-0129`
+            This release contains the LineageOS 22.1 (Android 15) ROM for Raphael (Xiaomi Mi 9T Pro / Redmi K20 Pro).
 
-            **Images:**
-            - `PixelOS_boot.img`
-            - `PixelOS_recovery.img`
-            - `LineageOS_boot.img`
-            - `LineageOS_recovery.img` (if available)
+            **Original ROM**: `lineage-22.1-20250209-UNOFFICIAL-raphael.zip`  
+            **Build date**: 2025-02-09  
+            **Android version**: 15
+
+            **Included files:**
+            - `lineage-22.1-20250209-UNOFFICIAL-raphael.7z.001`, `.7z.002`, ... (split ROM)
+            - `boot.img` (extracted kernel)
+            - `recovery.img` (if present in ROM)
+
+            **How to extract the ROM zip from split volumes:**
+            1. Download all `.7z.*` parts to the same folder.
+            2. Extract with 7-Zip:
+               ```bash
+               7z x lineage-22.1-20250209-UNOFFICIAL-raphael.7z.001
