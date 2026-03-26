@@ -1,0 +1,46 @@
+name: Download Clang Prebuilts and Upload to Release
+
+on:
+  workflow_dispatch:  # 支持手动触发
+
+permissions:
+  contents: write  # 允许创建 Release 和上传资产
+
+jobs:
+  upload:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Create downloads directory
+        run: mkdir -p downloads
+
+      - name: Download Clang archives
+        run: |
+          # 你指定的两个固定 commit 版本
+          curl -L -o downloads/clang-r353983c-commit-f8901db6.tar.gz "https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86/+archive/f8901db697a294e418813287043562caa29b4614/clang-r353983c.tar.gz"
+          curl -L -o downloads/clang-r383902b-commit-0e9e7035.tar.gz "https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86/+archive/0e9e7035bf8ad42437c6156e5950eab13655b26c/clang-r383902b.tar.gz"
+
+      - name: Generate timestamp for tag
+        id: timestamp
+        run: echo "time=$(date +'%Y%m%d-%H%M%S')" >> $GITHUB_OUTPUT
+
+      - name: Create Release and Upload Assets
+        uses: softprops/action-gh-release@v2
+        with:
+          files: downloads/*
+          tag_name: clang-prebuilts-${{ steps.timestamp.outputs.time }}
+          name: "Clang Prebuilts (Android 11–16 + Fixed Commits) - ${{ steps.timestamp.outputs.time }}"
+          body: |
+            This release contains the following Clang prebuilt archives from Android Open Source Project:
+
+            **Fixed commit versions:**
+            - `clang-r353983c-commit-f8901db6.tar.gz` (commit f8901db697a294e418813287043562caa29b4614)
+            - `clang-r383902b-commit-0e9e7035.tar.gz` (commit 0e9e7035bf8ad42437c6156e5950eab13655b26c)
+
+            Files were downloaded directly from `android.googlesource.com`.
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
