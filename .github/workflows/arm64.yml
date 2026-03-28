@@ -1,0 +1,66 @@
+name: Download Clang/GCC Prebuilts and Upload to Release
+
+on:
+  workflow_dispatch:  # 支持手动触发
+
+permissions:
+  contents: write  # 允许创建 Release 和上传资产
+
+jobs:
+  upload:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Create downloads directory
+        run: mkdir -p downloads
+
+      - name: Download Clang and GCC archives
+        run: |
+          # Clang 下载列表 (版本，URL)
+          curl -L -o downloads/clang-r383902b_android9.tar.xz "https://github.com/tomxi1997/AOSP-Clang_arm64/releases/download/v5.1/clang-r383902b.tar.xz"
+          curl -L -o downloads/clang-r353983c_android10.tar.xz "https://github.com/tomxi1997/AOSP-Clang_arm64/releases/download/v1.1/clang-r353983c.tar.xz"
+          curl -L -o downloads/clang-r383902b_android11.tar.xz "https://github.com/tomxi1997/AOSP-Clang_arm64/releases/download/v5.1/clang-r383902b.tar.xz"
+          curl -L -o downloads/clang-r4161831_android12.tar.xz "https://github.com/tomxi1997/build-aosp-clang-for-arm64/releases/download/v11/clang-r4161831.tar.xz"
+          curl -L -o downloads/clang-r4507841_android13.tar.xz "https://github.com/tomxi1997/build-aosp-clang-for-arm64/releases/download/v11/clang-r4507841.tar.xz"
+          curl -L -o downloads/clang-r487747_android14.tar.xz "https://github.com/tomxi1997/build-aosp-clang-for-arm64/releases/download/v14/clang-r487747.tar.xz"
+          curl -L -o downloads/clang-r498229b_android15.tar.xz "https://github.com/tomxi1997/build-aosp-clang-for-arm64/releases/download/v16/clang-r498229b.tar.xz"
+          # GCC 下载
+          curl -L -o downloads/google_gcc_4.9-32.tar.xz "https://github.com/tomxi1997/build-aosp-clang-for-arm64/releases/download/v8/google_gcc_4.9-32.tar.xz"
+          curl -L -o downloads/google_gcc_4.9-64.tar.xz "https://github.com/tomxi1997/build-aosp-clang-for-arm64/releases/download/v8/google_gcc_4.9-64.tar.xz"
+
+      - name: Generate timestamp for tag
+        id: timestamp
+        run: echo "time=$(date +'%Y%m%d-%H%M%S')" >> $GITHUB_OUTPUT
+
+      - name: Create Release and Upload Assets
+        uses: softprops/action-gh-release@v2
+        with:
+          files: downloads/*
+          tag_name: clang-prebuilts-${{ steps.timestamp.outputs.time }}
+          name: "Clang/GCC Prebuilts (Android 9–15) - ${{ steps.timestamp.outputs.time }}"
+          body: |
+            This release contains the following Clang and GCC prebuilt archives from custom sources:
+
+            ### Clang
+            - **Android 9** (r383902b): `clang-r383902b_android9.tar.xz`
+            - **Android 10** (r353983c): `clang-r353983c_android10.tar.xz`
+            - **Android 11** (r383902b): `clang-r383902b_android11.tar.xz`
+            - **Android 12** (r4161831): `clang-r4161831_android12.tar.xz`
+            - **Android 13** (r4507841): `clang-r4507841_android13.tar.xz`
+            - **Android 14** (r487747): `clang-r487747_android14.tar.xz`
+            - **Android 15** (r498229b): `clang-r498229b_android15.tar.xz`
+
+            ### GCC (Google 4.9)
+            - **32-bit**: `google_gcc_4.9-32.tar.xz`
+            - **64-bit**: `google_gcc_4.9-64.tar.xz`
+
+            Files were downloaded from the following GitHub repositories:
+            - https://github.com/tomxi1997/AOSP-Clang_arm64
+            - https://github.com/tomxi1997/build-aosp-clang-for-arm64
+
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
