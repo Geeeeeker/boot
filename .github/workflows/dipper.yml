@@ -1,0 +1,73 @@
+name: Download & Extract LineageOS 18.1 (Android 11) ROM for Dipper
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  process-rom:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Create working directory
+        run: mkdir -p work downloads
+
+      - name: Download LineageOS 18.1 ROM (Android 11)
+        run: |
+          curl -L -o downloads/lineage-18.1-20220519-nightly-dipper-signed.zip \
+            "https://b4.timschumi.net/lineage-archive/lineage-18.1-20220519-nightly-dipper-signed.zip"
+
+      - name: Extract boot & recovery images from ROM zip
+        run: |
+          cd downloads
+          unzip lineage-18.1-20220519-nightly-dipper-signed.zip -d extracted_rom
+          if [ -f extracted_rom/boot.img ]; then
+            cp extracted_rom/boot.img ../boot.img
+            echo "boot.img extracted"
+          else
+            echo "boot.img not found in ROM zip"
+            exit 1
+          fi
+          if [ -f extracted_rom/recovery.img ]; then
+            cp extracted_rom/recovery.img ../recovery.img
+            echo "recovery.img extracted"
+          else
+            echo "recovery.img not found in ROM zip (may be included in payload.bin)"
+          fi
+          rm -rf extracted_rom
+
+      - name: Generate timestamp
+        id: timestamp
+        run: echo "time=$(date +'%Y%m%d-%H%M%S')" >> $GITHUB_OUTPUT
+
+      - name: Create Release and Upload Assets
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            downloads/*
+            boot.img
+            recovery.img
+          tag_name: lineage-18-1-dipper-${{ steps.timestamp.outputs.time }}
+          name: "LineageOS 18.1 (Android 11) for Dipper - ${{ steps.timestamp.outputs.time }}"
+          body: |
+            This release contains the LineageOS 18.1 (Android 11) ROM for Dipper (Xiaomi Mi 8).
+
+            **Original ROM**: `lineage-18.1-20220519-nightly-dipper-signed.zip`  
+            **Build date**: 2022-05-19  
+            **Android version**: 11
+
+            **Included files:**
+            - `lineage-18.1-20220519-nightly-dipper-signed.zip` (full ROM package)
+            - `boot.img` (extracted kernel)
+            - `recovery.img` (if present in ROM)
+
+            **How to install:**
+            1. Download the ROM zip and boot image.
+            2. Flash using TWRP or Lineage Recovery:
+               ```bash
+               fastboot flash boot boot.img
+               adb sideload lineage-18.1-20220519-nightly-dipper-signed.zip
