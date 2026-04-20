@@ -1,11 +1,11 @@
-name: 清理 Magisk 残留，生成纯净 KSU boot.img (magiskboot)
+name: 彻底清理 Magisk 残留，生成纯净 KSU boot.img (增强版)
 
 on:
   workflow_dispatch: # 允许手动触发
 
 jobs:
   clean-boot-img:
-    name: 清理 boot.img 中的 Magisk 残留
+    name: 彻底清理 boot.img 中的 Magisk 残留
     runs-on: ubuntu-latest
     steps:
       - name: 检出代码 (Checkout)
@@ -13,11 +13,8 @@ jobs:
 
       - name: 下载官方 Magisk APK 并提取 magiskboot
         run: |
-          # 1. 下载官方 Magisk APK
           wget https://github.com/topjohnwu/Magisk/releases/download/v27.0/Magisk-v27.0.apk
-          # 2. 解压 APK
           unzip -q Magisk-v27.0.apk -d magisk_apk
-          # 3. 复制对应的 magiskboot 并赋予执行权限
           cp magisk_apk/lib/x86_64/libmagiskboot.so magiskboot
           chmod +x magiskboot
 
@@ -30,12 +27,33 @@ jobs:
         run: |
           ./magiskboot unpack -n boot.img
 
-      - name: 清理 ramdisk 中的 Magisk 残留
+      - name: 彻底清理所有 ramdisk 中的 Magisk 残留
         run: |
-          # 使用 cpio 命令删除 Magisk 相关目录
-          ./magiskboot cpio ramdisk.cpio "rm -r .backup" 2>/dev/null || true
-          ./magiskboot cpio ramdisk.cpio "rm -r .magisk" 2>/dev/null || true
-          ./magiskboot cpio ramdisk.cpio "rm -r overlay.d" 2>/dev/null || true
+          # 1. 清理主 ramdisk
+          echo ">>> 清理主 ramdisk.cpio"
+          ./magiskboot cpio ramdisk.cpio \
+            "rm -r .magisk" \
+            "rm -r .backup" \
+            "rm -r overlay.d" \
+            "rm magisk32" \
+            "rm magisk64" \
+            "rm magiskinit" \
+            "rm init.magisk.rc" 2>/dev/null || true
+
+          # 2. 如果有 vendor_ramdisk 目录，也清理其中的 Magisk 残留
+          if [ -d "vendor_ramdisk" ]; then
+            echo ">>> 清理 vendor_ramdisk"
+            for VENDOR_CPIO in vendor_ramdisk/*.cpio; do
+              [ -f "$VENDOR_CPIO" ] && ./magiskboot cpio "$VENDOR_CPIO" \
+                "rm -r .magisk" \
+                "rm -r .backup" \
+                "rm -r overlay.d" \
+                "rm magisk32" \
+                "rm magisk64" \
+                "rm magiskinit" \
+                "rm init.magisk.rc" 2>/dev/null || true
+            done
+          fi
 
       - name: 重新打包 (Repack) 为新的 boot.img
         run: |
