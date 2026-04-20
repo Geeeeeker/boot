@@ -1,0 +1,65 @@
+name: 清理 Magisk 残留，生成纯净 KSU boot.img
+
+on:
+  workflow_dispatch: # 允许手动触发
+
+jobs:
+  clean-boot-img:
+    name: 清理 boot.img 中的 Magisk 残留
+    runs-on: ubuntu-latest
+    steps:
+      - name: 检出代码 (Checkout)
+        uses: actions/checkout@v4
+
+      - name: 下载 magiskboot 工具
+        run: |
+          # 从 TeamWin 的仓库获取预编译的 magiskboot (x86_64)
+          wget https://github.com/TeamWin/external_magisk-prebuilt/raw/master/magiskboot_x86_64
+          chmod +x magiskboot_x86_64
+          mv magiskboot_x86_64 magiskboot
+
+      - name: 下载待处理的 boot.img
+        run: |
+          # 下载你上传到 GitHub Releases 的 boot.img
+          BOOT_IMG_URL="https://github.com/Geeeeeker/boot/releases/download/extracted-roms-20260322-062443/raphael_boot.img"
+          wget "$BOOT_IMG_URL" -O boot.img
+
+      - name: 解包 (Unpack) boot.img
+        run: |
+          # 使用 magiskboot 解包 boot.img
+          ./magiskboot unpack -n boot.img
+
+      - name: 清理 ramdisk 中的 Magisk 残留
+        run: |
+          # 确保 init 文件存在 (某些设备的 ramdisk 可能不包含 init)
+          touch init
+          
+          # 从 cpio 归档中删除 Magisk 相关的文件和目录
+          ./magiskboot cpio ramdisk.cpio \
+            "rm -r .backup" \
+            "rm -r .magisk" \
+            "rm -r overlay.d"
+          
+          # 提取一个干净的 init 文件（如果存在）
+          ./magiskboot cpio ramdisk.cpio "extract init init_clean" 2>/dev/null || true
+          
+          # 如果成功提取了干净的 init 文件，则用它替换当前目录下的 init 文件
+          if [ -f "init_clean" ]; then
+            mv init_clean init
+          fi
+          
+          # 将（可能被替换的）init 文件重新添加回 cpio 归档
+          if [ -f "init" ]; then
+            ./magiskboot cpio ramdisk.cpio "add 0750 init init"
+          fi
+
+      - name: 重新打包 (Repack) 为新的 boot.img
+        run: |
+          # 重新打包，生成新的 boot.img
+          ./magiskboot repack -n boot.img new-boot.img
+
+      - name: 上传处理后的 boot.img
+        uses: actions/upload-artifact@v4
+        with:
+          name: clean-ksu-boot-img
+          path: new-boot.img
