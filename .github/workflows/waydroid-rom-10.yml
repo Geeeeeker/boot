@@ -1,4 +1,4 @@
-name: Download Waydroid Android 10 (lineage-17.1) Images
+name: Download Waydroid Android 10 (lineage-17.1) Images – Extract IMG
 
 on:
   workflow_dispatch:
@@ -10,29 +10,24 @@ jobs:
   upload:
     runs-on: ubuntu-latest
     steps:
-      - name: Create downloads directory
-        run: mkdir -p downloads
+      - name: Create directories
+        run: mkdir -p downloads extracted
 
-      - name: Download lineage-17.1 images (all architectures)
+      - name: Download lineage-17.1 zip files
         run: |
           urls=(
-            # x86_64
             "https://sourceforge.net/projects/waydroid/files/images/vendor/waydroid_x86_64/lineage-17.1-20220723-MAINLINE-waydroid_x86_64-vendor.zip/download"
             "https://sourceforge.net/projects/waydroid/files/images/system/lineage/waydroid_x86_64/lineage-17.1-20220723-VANILLA-waydroid_x86_64-system.zip/download"
             "https://sourceforge.net/projects/waydroid/files/images/system/lineage/waydroid_x86_64/lineage-17.1-20220723-GAPPS-waydroid_x86_64-system.zip/download"
-            # x86
             "https://sourceforge.net/projects/waydroid/files/images/vendor/waydroid_x86/lineage-17.1-20220723-MAINLINE-waydroid_x86-vendor.zip/download"
             "https://sourceforge.net/projects/waydroid/files/images/system/lineage/waydroid_x86/lineage-17.1-20220723-VANILLA-waydroid_x86-system.zip/download"
             "https://sourceforge.net/projects/waydroid/files/images/system/lineage/waydroid_x86/lineage-17.1-20220723-GAPPS-waydroid_x86-system.zip/download"
-            # arm64
             "https://sourceforge.net/projects/waydroid/files/images/vendor/waydroid_arm64/lineage-17.1-20220723-MAINLINE-waydroid_arm64-vendor.zip/download"
             "https://sourceforge.net/projects/waydroid/files/images/system/lineage/waydroid_arm64/lineage-17.1-20220723-VANILLA-waydroid_arm64-system.zip/download"
             "https://sourceforge.net/projects/waydroid/files/images/system/lineage/waydroid_arm64/lineage-17.1-20220723-GAPPS-waydroid_arm64-system.zip/download"
-            # arm64_only
             "https://sourceforge.net/projects/waydroid/files/images/vendor/waydroid_arm64_only/lineage-17.1-20220723-MAINLINE-waydroid_arm64_only-vendor.zip/download"
             "https://sourceforge.net/projects/waydroid/files/images/system/lineage/waydroid_arm64_only/lineage-17.1-20220723-VANILLA-waydroid_arm64_only-system.zip/download"
             "https://sourceforge.net/projects/waydroid/files/images/system/lineage/waydroid_arm64_only/lineage-17.1-20220723-GAPPS-waydroid_arm64_only-system.zip/download"
-            # arm
             "https://sourceforge.net/projects/waydroid/files/images/vendor/waydroid_arm/lineage-17.1-20220723-MAINLINE-waydroid_arm-vendor.zip/download"
             "https://sourceforge.net/projects/waydroid/files/images/system/lineage/waydroid_arm/lineage-17.1-20220723-VANILLA-waydroid_arm-system.zip/download"
             "https://sourceforge.net/projects/waydroid/files/images/system/lineage/waydroid_arm/lineage-17.1-20220723-GAPPS-waydroid_arm-system.zip/download"
@@ -40,18 +35,32 @@ jobs:
           cd downloads
           for url in "${urls[@]}"; do
             filename=$(basename "$(echo "$url" | sed 's|/download$||')")
-            echo "Downloading $filename"
             curl -L -o "$filename" "$url"
           done
 
-      - name: Generate timestamp
+      - name: Extract and rename
+        run: |
+          cd downloads
+          for zipfile in *.zip; do
+            base=$(basename "$zipfile" .zip)
+            clean=$(echo "$base" | sed -E 's/-20[0-9]{6}//' | sed 's/-MAINLINE//' | sed 's/-GAPPS//' | sed 's/-VANILLA//')
+            target_name=$(echo "$clean" | sed 's/waydroid_//')
+            unzip "$zipfile" -d "../extracted/${target_name}"
+            mv "../extracted/${target_name}"/*.img "../extracted/${target_name}.img"
+            rmdir "../extracted/${target_name}"
+          done
+
+      - name: List extracted files
+        run: ls -lh extracted/
+
+      - name: Timestamp
         id: timestamp
         run: echo "time=$(date +'%Y%m%d-%H%M%S')" >> $GITHUB_OUTPUT
 
-      - name: Create Release
+      - name: Release
         uses: softprops/action-gh-release@v2
         with:
-          files: downloads/*
-          tag_name: waydroid-android10-${{ steps.timestamp.outputs.time }}
-          name: "Waydroid Android 10 (lineage-17.1) Images - ${{ steps.timestamp.outputs.time }}"
-          body: "包含所有架构的 vendor 和 system (VANILLA/GAPPS) 镜像，基于 lineage-17.1 (2022-07-23)。"
+          files: extracted/*
+          tag_name: waydroid-android10-img-${{ steps.timestamp.outputs.time }}
+          name: "Waydroid Android 10 IMGs - ${{ steps.timestamp.outputs.time }}"
+          body: "直接解压后的 system.img / vendor.img，基于 lineage-17.1 (2022-07-23)。"
