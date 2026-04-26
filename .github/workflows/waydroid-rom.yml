@@ -1,4 +1,4 @@
-name: Download Waydroid Images and Create Release
+name: Download Waydroid Android 13 Images
 
 on:
   workflow_dispatch:
@@ -10,81 +10,37 @@ jobs:
   upload:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
       - name: Create downloads directory
         run: mkdir -p downloads
 
-      - name: Download all Waydroid images
+      - name: Download Android 13 (lineage-20.0) images only
         run: |
-          # 定义所有镜像下载链接（共45个）
           urls=(
-            # x86_64 - 更新 lineage-20.0
+            # x86_64
             "https://sourceforge.net/projects/waydroid/files/images/vendor/waydroid_x86_64/lineage-20.0-20260403-MAINLINE-waydroid_x86_64-vendor.zip/download"
             "https://sourceforge.net/projects/waydroid/files/images/system/lineage/waydroid_x86_64/lineage-20.0-20260403-VANILLA-waydroid_x86_64-system.zip/download"
             "https://sourceforge.net/projects/waydroid/files/images/system/lineage/waydroid_x86_64/lineage-20.0-20260403-GAPPS-waydroid_x86_64-system.zip/download"
-            # x86_64 - lineage-18.1 / 17.1 保持不变
-            "https://sourceforge.net/projects/waydroid/files/images/vendor/waydroid_x86_64/lineage-18.1-20250628-MAINLINE-waydroid_x86_64-vendor.zip/download"
-            "https://sourceforge.net/projects/waydroid/files/images/system/lineage/waydroid_x86_64/lineage-18.1-20250628-GAPPS-waydroid_x86_64-system.zip/download"
-            "https://sourceforge.net/projects/waydroid/files/images/system/lineage/waydroid_x86_64/lineage-18.1-20250628-VANILLA-waydroid_x86_64-system.zip/download"
-            "https://sourceforge.net/projects/waydroid/files/images/vendor/waydroid_x86_64/lineage-17.1-20220723-MAINLINE-waydroid_x86_64-vendor.zip/download"
-            "https://sourceforge.net/projects/waydroid/files/images/system/lineage/waydroid_x86_64/lineage-17.1-20220723-VANILLA-waydroid_x86_64-system.zip/download"
-            "https://sourceforge.net/projects/waydroid/files/images/system/lineage/waydroid_x86_64/lineage-17.1-20220723-GAPPS-waydroid_x86_64-system.zip/download"
-
-            # x86 - 更新 lineage-20.0
+            # x86
             "https://sourceforge.net/projects/waydroid/files/images/vendor/waydroid_x86/lineage-20.0-20260403-MAINLINE-waydroid_x86-vendor.zip/download"
             "https://sourceforge.net/projects/waydroid/files/images/system/lineage/waydroid_x86/lineage-20.0-20260403-VANILLA-waydroid_x86-system.zip/download"
             "https://sourceforge.net/projects/waydroid/files/images/system/lineage/waydroid_x86/lineage-20.0-20260403-GAPPS-waydroid_x86-system.zip/download"
-            # x86 - lineage-18.1 / 17.1 保持不变
-            "https://sourceforge.net/projects/waydroid/files/images/vendor/waydroid_x86/lineage-18.1-20250628-MAINLINE-waydroid_x86-vendor.zip/download"
-            "https://sourceforge.net/projects/waydroid/files/images/system/lineage/waydroid_x86/lineage-18.1-20250628-GAPPS-waydroid_x86-system.zip/download"
-            "https://sourceforge.net/projects/waydroid/files/images/system/lineage/waydroid_x86/lineage-18.1-20250628-VANILLA-waydroid_x86-system.zip/download"
-            "https://sourceforge.net/projects/waydroid/files/images/vendor/waydroid_x86/lineage-17.1-20220723-MAINLINE-waydroid_x86-vendor.zip/download"
-            "https://sourceforge.net/projects/waydroid/files/images/system/lineage/waydroid_x86/lineage-17.1-20220723-VANILLA-waydroid_x86-system.zip/download"
-            "https://sourceforge.net/projects/waydroid/files/images/system/lineage/waydroid_x86/lineage-17.1-20220723-GAPPS-waydroid_x86-system.zip/download"
-
-            # arm64 - 更新 lineage-20.0
+            # arm64
             "https://sourceforge.net/projects/waydroid/files/images/vendor/waydroid_arm64/lineage-20.0-20260403-MAINLINE-waydroid_arm64-vendor.zip/download"
             "https://sourceforge.net/projects/waydroid/files/images/system/lineage/waydroid_arm64/lineage-20.0-20260403-VANILLA-waydroid_arm64-system.zip/download"
             "https://sourceforge.net/projects/waydroid/files/images/system/lineage/waydroid_arm64/lineage-20.0-20260403-GAPPS-waydroid_arm64-system.zip/download"
-            # arm64 - lineage-18.1 / 17.1 保持不变
-            "https://sourceforge.net/projects/waydroid/files/images/vendor/waydroid_arm64/lineage-18.1-20250628-MAINLINE-waydroid_arm64-vendor.zip/download"
-            "https://sourceforge.net/projects/waydroid/files/images/system/lineage/waydroid_arm64/lineage-18.1-20250628-GAPPS-waydroid_arm64-system.zip/download"
-            "https://sourceforge.net/projects/waydroid/files/images/system/lineage/waydroid_arm64/lineage-18.1-20250628-VANILLA-waydroid_arm64-system.zip/download"
-            "https://sourceforge.net/projects/waydroid/files/images/vendor/waydroid_arm64/lineage-17.1-20220723-MAINLINE-waydroid_arm64-vendor.zip/download"
-            "https://sourceforge.net/projects/waydroid/files/images/system/lineage/waydroid_arm64/lineage-17.1-20220723-VANILLA-waydroid_arm64-system.zip/download"
-            "https://sourceforge.net/projects/waydroid/files/images/system/lineage/waydroid_arm64/lineage-17.1-20220723-GAPPS-waydroid_arm64-system.zip/download"
-
-            # arm64_only - 更新 lineage-20.0
+            # arm64_only
             "https://sourceforge.net/projects/waydroid/files/images/vendor/waydroid_arm64_only/lineage-20.0-20260403-MAINLINE-waydroid_arm64_only-vendor.zip/download"
             "https://sourceforge.net/projects/waydroid/files/images/system/lineage/waydroid_arm64_only/lineage-20.0-20260403-VANILLA-waydroid_arm64_only-system.zip/download"
             "https://sourceforge.net/projects/waydroid/files/images/system/lineage/waydroid_arm64_only/lineage-20.0-20260403-GAPPS-waydroid_arm64_only-system.zip/download"
-            # arm64_only - lineage-18.1 / 17.1 保持不变
-            "https://sourceforge.net/projects/waydroid/files/images/vendor/waydroid_arm64_only/lineage-18.1-20250628-MAINLINE-waydroid_arm64_only-vendor.zip/download"
-            "https://sourceforge.net/projects/waydroid/files/images/system/lineage/waydroid_arm64_only/lineage-18.1-20250628-GAPPS-waydroid_arm64_only-system.zip/download"
-            "https://sourceforge.net/projects/waydroid/files/images/system/lineage/waydroid_arm64_only/lineage-18.1-20250628-VANILLA-waydroid_arm64_only-system.zip/download"
-            "https://sourceforge.net/projects/waydroid/files/images/vendor/waydroid_arm64_only/lineage-17.1-20220723-MAINLINE-waydroid_arm64_only-vendor.zip/download"
-            "https://sourceforge.net/projects/waydroid/files/images/system/lineage/waydroid_arm64_only/lineage-17.1-20220723-VANILLA-waydroid_arm64_only-system.zip/download"
-            "https://sourceforge.net/projects/waydroid/files/images/system/lineage/waydroid_arm64_only/lineage-17.1-20220723-GAPPS-waydroid_arm64_only-system.zip/download"
-
-            # arm - 更新 lineage-20.0（注意 GAPPS 日期为 20260402）
+            # arm (注意 GAPPS 日期不同)
             "https://sourceforge.net/projects/waydroid/files/images/vendor/waydroid_arm/lineage-20.0-20260403-MAINLINE-waydroid_arm-vendor.zip/download"
             "https://sourceforge.net/projects/waydroid/files/images/system/lineage/waydroid_arm/lineage-20.0-20260403-VANILLA-waydroid_arm-system.zip/download"
             "https://sourceforge.net/projects/waydroid/files/images/system/lineage/waydroid_arm/lineage-20.0-20260402-GAPPS-waydroid_arm-system.zip/download"
-            # arm - lineage-18.1 / 17.1 保持不变
-            "https://sourceforge.net/projects/waydroid/files/images/vendor/waydroid_arm/lineage-18.1-20250628-MAINLINE-waydroid_arm-vendor.zip/download"
-            "https://sourceforge.net/projects/waydroid/files/images/system/lineage/waydroid_arm/lineage-18.1-20250628-GAPPS-waydroid_arm-system.zip/download"
-            "https://sourceforge.net/projects/waydroid/files/images/system/lineage/waydroid_arm/lineage-18.1-20250628-VANILLA-waydroid_arm-system.zip/download"
-            "https://sourceforge.net/projects/waydroid/files/images/vendor/waydroid_arm/lineage-17.1-20220723-MAINLINE-waydroid_arm-vendor.zip/download"
-            "https://sourceforge.net/projects/waydroid/files/images/system/lineage/waydroid_arm/lineage-17.1-20220723-VANILLA-waydroid_arm-system.zip/download"
-            "https://sourceforge.net/projects/waydroid/files/images/system/lineage/waydroid_arm/lineage-17.1-20220723-GAPPS-waydroid_arm-system.zip/download"
           )
-
           cd downloads
           for url in "${urls[@]}"; do
             filename=$(basename "$(echo "$url" | sed 's|/download$||')")
-            echo "Downloading $filename from $url"
+            echo "Downloading $filename"
             curl -L -o "$filename" "$url"
           done
 
@@ -92,23 +48,10 @@ jobs:
         id: timestamp
         run: echo "time=$(date +'%Y%m%d-%H%M%S')" >> $GITHUB_OUTPUT
 
-      - name: Create Release and Upload Assets
+      - name: Create Release
         uses: softprops/action-gh-release@v2
         with:
           files: downloads/*
-          tag_name: waydroid-images-${{ steps.timestamp.outputs.time }}
-          name: "Waydroid Images (multi-arch) - ${{ steps.timestamp.outputs.time }}"
-          body: |
-            This release contains Waydroid system and vendor images for multiple architectures (x86_64, x86, arm64, arm64_only, arm) and LineageOS versions (20.0/Android 13, 18.1/Android 11, 17.1/Android 10).
-
-            **Last updated:** 2026-04-03 (Android 13 / lineage-20.0)
-
-            **Image types included:**
-            - Vendor images (MAINLINE)
-            - System images (VANILLA & GAPPS)
-
-            **How to use:**
-            Download the appropriate `system.img` and `vendor.img` for your architecture and place them in `/usr/share/waydroid-extra/images/` before running `sudo waydroid init -f`.
-
-            **Extraction:**
-            All files are standard ZIP archives and can be extracted with any archive manager.
+          tag_name: waydroid-android13-${{ steps.timestamp.outputs.time }}
+          name: "Waydroid Android 13 Images - ${{ steps.timestamp.outputs.time }}"
+          body: "包含所有架构的 vendor 和 system (VANILLA/GAPPS) 镜像，基于 lineage-20.0 (2026-04-03)。"
