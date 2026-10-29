@@ -1,0 +1,49 @@
+name: Extract boot.img and Upload to Release
+
+on:
+  workflow_dispatch:   # 支持在 Actions 页面手动触发
+
+permissions:
+  contents: write      # 上传 Release 附件必需
+
+jobs:
+  extract-and-upload:
+    runs-on: ubuntu-latest
+    env:
+      RELEASE_TAG: "lineage-24-raphael-20261029-134503"
+      ZIP_URL: "https://github.com/Geeeeeker/boot/releases/download/lineage-24-raphael-20261029-134503/a17-boot-5.4.zip"
+
+    steps:
+      - name: Download ZIP from Release
+        run: |
+          echo "Downloading: $ZIP_URL"
+          curl -L -o a17-boot-5.4.zip "$ZIP_URL"
+          ls -lh a17-boot-5.4.zip
+
+      - name: Extract boot.img
+        run: |
+          # Ubuntu runner 已预装 unzip/7z，直接解压
+          unzip -o a17-boot-5.4.zip
+          echo "--- 解压后文件列表 ---"
+          ls -lh
+
+          # 确认 boot.img 存在（有些 ZIP 内部可能带子目录）
+          if [ -f "boot.img" ]; then
+            echo "Found boot.img at root"
+          else
+            BOOT_PATH=$(find . -name "boot.img" -type f | head -n 1)
+            if [ -z "$BOOT_PATH" ]; then
+              echo "Error: boot.img not found in archive"
+              exit 1
+            fi
+            echo "Found boot.img at: $BOOT_PATH"
+            cp "$BOOT_PATH" ./boot.img
+          fi
+
+      - name: Upload boot.img to same Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # 使用 runner 预装的 gh CLI，直接上传到指定 tag 的 Release
+          gh release upload "$RELEASE_TAG" ./boot.img --clobber
+          echo "Uploaded boot.img to release $RELEASE_TAG"
