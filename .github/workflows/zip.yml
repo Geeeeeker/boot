@@ -22,12 +22,10 @@ jobs:
 
       - name: Extract boot.img
         run: |
-          # Ubuntu runner 已预装 unzip/7z，直接解压
           unzip -o a17-boot-5.4.zip
           echo "--- 解压后文件列表 ---"
           ls -lh
 
-          # 确认 boot.img 存在（有些 ZIP 内部可能带子目录）
           if [ -f "boot.img" ]; then
             echo "Found boot.img at root"
           else
@@ -43,7 +41,9 @@ jobs:
       - name: Upload boot.img to same Release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
         run: |
-          # 使用 runner 预装的 gh CLI，直接上传到指定 tag 的 Release
-          gh release upload "$RELEASE_TAG" ./boot.img --clobber
+          gh release upload "$RELEASE_TAG" ./boot.img \
+            --repo "$GH_REPO" \
+            --clobber
           echo "Uploaded boot.img to release $RELEASE_TAG"
